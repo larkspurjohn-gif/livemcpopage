@@ -1,42 +1,72 @@
-# sv
+AI Research Assistant: Local RAG Stack
+A high-performance research tool built with Svelte 5 and a Model Context Protocol (MCP) backend. This application performs real-time web scraping via DuckDuckGo and uses MediaPipe to rank the most relevant information for your queries.
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Project Architecture (Part 3)
+The "AI Tech Stack" consists of three primary layers:
 
-## Creating a project
+Frontend: SvelteKit using Runes ($state) for reactive UI management.
 
-If you're seeing this, you've probably already done this step. Congrats!
+Proxy Layer: mcpo (MCP Proxy) converting MCP tool protocols into standard REST API endpoints.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+RAG Engine: A Dockerized Python backend that handles:
 
-To recreate this project with the same configuration:
+Retrieval: Searching DuckDuckGo for live data.
 
-```sh
-# recreate this project
-npx sv@0.14.1 create --template minimal --no-types --add tailwindcss="plugins:typography,forms" --install npm mcpoPage
-```
+Augmentation: Scraping full text from discovered URLs.
 
-## Developing
+Ranking: Using MediaPipe embeddings to calculate relevance scores. (Doesn't work currently)
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Setup & Installation
+1. Backend (Docker)
+Ensure your Docker container is running and exposing port 9001:
 
-```sh
-npm run dev
+Bash
+# Build the image
+docker build -t local-rag-proxy .
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+# Run the container
+docker run -d -p 9001:8000 --name rag-proxy-app local-rag-proxy
+2. Frontend (SvelteKit)
+Initialize your project: npm install
 
-## Building
+Start the development server: npm run dev
 
-To create a production version of your app:
+Open http://localhost:5173 in your browser.
 
-```sh
-npm run build
-```
+🛠️ UI/UX Design (Part 4)
+The interface is designed for Technical Research, focusing on:
 
-You can preview the production build with `npm run preview`.
+Evidence-First Layout: Raw search snippets are displayed alongside relevance scores to build user trust.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Relevance Badges: Visual indicators that show if the result matches
+
+Async Feedback: Integrated loading states to manage the 10-15 second scraping and ranking window.
+
+🔍 Troubleshooting
+"Failed to parse JSONRPC message" (Terminal Logs)
+If you see ValidationError or Invalid JSON in your terminal logs (as seen in your recent sessions), this is expected behavior with the current mcp-local-rag implementation.
+
+Cause: The server prints "Status Updates" (e.g., Fetched https://...) to stdout. The proxy tries to read these as JSON-RPC messages and fails.
+
+Impact: None. The proxy successfully ignores these text strings and captures the actual JSON data at the end of the process.
+
+All Badges show 0%
+If results appear but relevance is 0%:
+
+Verify the score field exists in the API response (Network Tab -> Response).
+
+Check if the MediaPipe model initialized correctly in the Docker logs.
+
+Ensure your query is specific enough for the embedding model to find a match in the text.
+
+📝 LLM Prompt Design
+To complete the "Synthesis" part of the stack, use this prompt template with an LLM:
+
+System Prompt: "You are a Research Assistant. I will provide you with a 'context' block containing search results.Your Task: Summarize the answer in 3 clear paragraphs.Citation Rule: If a fact comes from a specific URL provided in the context, add a clickable markdown link at the end of the sentence. "
+
+Key Commands
+View Logs: docker logs -f rag-proxy-app
+
+Restart Backend: docker restart rag-proxy-app
+
+Stop Backend: docker stop rag-proxy-app
